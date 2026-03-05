@@ -15,6 +15,7 @@ const VIDEO_URL =
 
 export default function VideoPage() {
   const videoRef = useRef(null);
+  const timestampsListRef = useRef(null);
   const [timestamps, setTimestamps] = useState([]);
   const [finished, setFinished] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -83,6 +84,12 @@ export default function VideoPage() {
     navigate("/thankyou");
   };
 
+  // Scroll timestamps list to bottom when a new one is added
+  useEffect(() => {
+    const el = timestampsListRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [timestamps]);
+
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60);
     const s = (seconds % 60).toFixed(2);
@@ -137,6 +144,7 @@ export default function VideoPage() {
                 variant="outlined"
                 size="small"
                 onClick={handleRecordTimestamp}
+                sx={{ borderWidth: 3 }}
               >
                 ✅ Record timestamp
               </Button>
@@ -145,6 +153,14 @@ export default function VideoPage() {
                 size="small"
                 onClick={handleUndo}
                 disabled={timestamps.length === 0}
+                sx={{
+                  color: "black",
+                  borderColor: "black",
+                  "&:hover": {
+                    borderColor: "black",
+                    bgcolor: "action.hover",
+                  },
+                }}
               >
                 ↩️ Undo
               </Button>
@@ -187,6 +203,7 @@ export default function VideoPage() {
               Timestamps ({timestamps.length})
             </Typography>
             <Box
+              ref={timestampsListRef}
               sx={{
                 overflow: "auto",
                 flex: 1,
