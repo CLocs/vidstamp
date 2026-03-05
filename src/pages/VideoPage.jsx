@@ -9,101 +9,48 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
-const YOUTUBE_VIDEO_ID = "TKQKumsHW88";
+// Your R2 public URL (from bucket Public access / R2 dev subdomain or custom domain)
+const VIDEO_URL =
+  "https://pub-05948a525013432aada6712ce583b048.r2.dev/reflect/Sample_Surgery1_cut1a.mp4";
 
 export default function VideoPage() {
-  const playerRef = useRef(null);
-  const containerRef = useRef(null);
+  const videoRef = useRef(null);
   const [timestamps, setTimestamps] = useState([]);
   const [finished, setFinished] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [playerReady, setPlayerReady] = useState(false);
   const navigate = useNavigate();
-
-  // Load YouTube IFrame API and create player
-  useEffect(() => {
-    const initPlayer = () => {
-      const container = containerRef.current;
-      if (!container || window.YT == null) return;
-
-      playerRef.current = new window.YT.Player(container, {
-        videoId: YOUTUBE_VIDEO_ID,
-        width: "100%",
-        playerVars: {
-          autoplay: 0,
-          controls: 1,
-        },
-        events: {
-          onReady: () => setPlayerReady(true),
-          onStateChange: (e) => {
-            if (e.data === window.YT.PlayerState.ENDED) {
-              setFinished(true);
-            }
-          },
-        },
-      });
-    };
-
-    if (window.YT?.Player) {
-      initPlayer();
-      return;
-    }
-
-    const tag = document.createElement("script");
-    tag.src = "https://www.youtube.com/iframe_api";
-    const firstScript = document.getElementsByTagName("script")[0];
-    firstScript.parentNode.insertBefore(tag, firstScript);
-
-    window.onYouTubeIframeAPIReady = initPlayer;
-
-    return () => {
-      delete window.onYouTubeIframeAPIReady;
-      if (playerRef.current?.destroy) {
-        playerRef.current.destroy();
-      }
-    };
-  }, []);
 
   // Listen for spacebar to record timestamps
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.code === "Space" && playerRef.current?.getCurrentTime) {
+      if (e.code === "Space" && videoRef.current) {
         e.preventDefault();
-        const t = playerRef.current.getCurrentTime();
-        if (typeof t === "number" && !isNaN(t)) {
-          setTimestamps((prev) => [...prev, parseFloat(t.toFixed(2))]);
-        }
+        const t = videoRef.current.currentTime.toFixed(2);
+        setTimestamps((prev) => [...prev, parseFloat(t)]);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Poll progress while player is ready and playing
+  // Track progress
   useEffect(() => {
-    if (!playerReady) return;
-
-    const interval = setInterval(() => {
-      const player = playerRef.current;
-      if (player?.getCurrentTime && player?.getDuration) {
-        const current = player.getCurrentTime();
-        const duration = player.getDuration();
-        if (typeof current === "number" && typeof duration === "number" && duration > 0) {
-          setProgress((current / duration) * 100);
-        }
+    const video = videoRef.current;
+    const updateProgress = () => {
+      if (video && video.duration > 0) {
+        setProgress((video.currentTime / video.duration) * 100);
       }
-    }, 250);
+    };
+    video?.addEventListener("timeupdate", updateProgress);
+    return () => video?.removeEventListener("timeupdate", updateProgress);
+  }, []);
 
-    return () => clearInterval(interval);
-  }, [playerReady]);
+  const handleEnded = () => setFinished(true);
 
   const handleRecordTimestamp = () => {
-    const player = playerRef.current;
-    if (player?.getCurrentTime) {
-      const t = player.getCurrentTime();
-      if (typeof t === "number" && !isNaN(t)) {
-        setTimestamps((prev) => [...prev, parseFloat(t.toFixed(2))]);
-      }
+    if (videoRef.current) {
+      const t = videoRef.current.currentTime.toFixed(2);
+      setTimestamps((prev) => [...prev, parseFloat(t)]);
     }
   };
 
@@ -130,15 +77,13 @@ export default function VideoPage() {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           Press Space or the button below to record timestamps.
         </Typography>
-        <Box
-          ref={containerRef}
-          sx={{
-            marginTop: "1.5rem",
-            borderRadius: "10px",
-            overflow: "hidden",
-            position: "relative",
-            "& iframe": { borderRadius: "10px" },
-          }}
+        <video
+          ref={videoRef}
+          src={VIDEO_URL}
+          controls
+          width="100%"
+          onEnded={handleEnded}
+          style={{ marginTop: "1.5rem", borderRadius: "10px" }}
         />
         <Button
           variant="outlined"
