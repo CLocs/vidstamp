@@ -20,13 +20,24 @@ export default function VideoPage() {
   const [progress, setProgress] = useState(0);
   const navigate = useNavigate();
 
-  // Listen for spacebar to record timestamps
+  // Listen for m (record) and u (undo)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.code === "Space" && videoRef.current) {
+      const inInput = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName);
+      if (inInput) return;
+
+      if (e.key === "m") {
         e.preventDefault();
-        const t = videoRef.current.currentTime.toFixed(2);
-        setTimestamps((prev) => [...prev, parseFloat(t)]);
+        if (videoRef.current) {
+          const t = videoRef.current.currentTime.toFixed(2);
+          setTimestamps((prev) => [...prev, parseFloat(t)]);
+        }
+        return;
+      }
+      if (e.key === "u") {
+        e.preventDefault();
+        setTimestamps((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));
+        return;
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -52,6 +63,10 @@ export default function VideoPage() {
       const t = videoRef.current.currentTime.toFixed(2);
       setTimestamps((prev) => [...prev, parseFloat(t)]);
     }
+  };
+
+  const handleUndo = () => {
+    setTimestamps((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));
   };
 
   const handleSubmit = () => {
@@ -83,9 +98,20 @@ export default function VideoPage() {
         <Typography
           variant="body2"
           color="text.secondary"
-          sx={{ mb: 1, textAlign: "center" }}
+          sx={{
+            mb: 1,
+            textAlign: "center",
+            "& kbd": {
+              px: 0.5,
+              py: 0.25,
+              fontFamily: "monospace",
+              bgcolor: "action.hover",
+              borderRadius: 0.5,
+              fontSize: "0.85em",
+            },
+          }}
         >
-          Press Space or the button below to record timestamps.
+          Record: <kbd>M</kbd>. Undo: <kbd>U</kbd>.
         </Typography>
 
         <Box
@@ -106,14 +132,23 @@ export default function VideoPage() {
               onEnded={handleEnded}
               style={{ borderRadius: "10px" }}
             />
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={handleRecordTimestamp}
-              sx={{ mt: 2 }}
-            >
-              Record timestamp ({timestamps.length})
-            </Button>
+            <Box sx={{ mt: 2, display: "flex", gap: 1, flexWrap: "wrap" }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleRecordTimestamp}
+              >
+                ✅ Record timestamp
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleUndo}
+                disabled={timestamps.length === 0}
+              >
+                ↩️ Undo
+              </Button>
+            </Box>
             <LinearProgress
               variant="determinate"
               value={progress}
@@ -149,7 +184,7 @@ export default function VideoPage() {
               variant="subtitle2"
               sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "divider" }}
             >
-              Timestamps
+              Timestamps ({timestamps.length})
             </Typography>
             <Box
               sx={{
