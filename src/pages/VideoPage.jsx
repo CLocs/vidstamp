@@ -13,13 +13,40 @@ import { useNavigate } from "react-router-dom";
 const VIDEO_URL =
   "https://pub-05948a525013432aada6712ce583b048.r2.dev/reflect/Sample_Surgery1_cut1a.mp4";
 
+const RESTORE_KEY = "vidstamp_restore";
+
+function getInitialTimestamps() {
+  try {
+    const raw = sessionStorage.getItem(RESTORE_KEY);
+    if (!raw) return [];
+    const data = JSON.parse(raw);
+    return Array.isArray(data.timestamps) ? data.timestamps : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function VideoPage() {
   const videoRef = useRef(null);
   const timestampsListRef = useRef(null);
-  const [timestamps, setTimestamps] = useState([]);
-  const [finished, setFinished] = useState(false);
+  const restoreTimeRef = useRef(null);
+  const [timestamps, setTimestamps] = useState(getInitialTimestamps);
   const [progress, setProgress] = useState(0);
   const navigate = useNavigate();
+
+  // Restore video position when returning from Thank You (Back)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(RESTORE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (typeof data.videoTime === "number" && data.videoTime >= 0) {
+          restoreTimeRef.current = data.videoTime;
+        }
+        sessionStorage.removeItem(RESTORE_KEY);
+      }
+    } catch (_) {}
+  }, []);
 
   // Listen for m (record) and u (undo)
   useEffect(() => {
@@ -57,8 +84,6 @@ export default function VideoPage() {
     return () => video?.removeEventListener("timeupdate", updateProgress);
   }, []);
 
-  const handleEnded = () => setFinished(true);
-
   const handleRecordTimestamp = () => {
     if (videoRef.current) {
       const t = videoRef.current.currentTime.toFixed(2);
@@ -70,17 +95,40 @@ export default function VideoPage() {
     setTimestamps((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));
   };
 
+  const escapeCsv = (val) => {
+    const s = String(val ?? "");
+    if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+  };
+
   const handleSubmit = () => {
-    const participant = JSON.parse(sessionStorage.getItem("participant"));
-    console.log("Submitting:", { participant, timestamps });
+    const participant = JSON.parse(sessionStorage.getItem("participant")) || {};
+    const header = "role,pgy,timestamps";
+    const rows = timestamps.map((t, i) =>
+      [
+        i === 0 ? escapeCsv(participant.role ?? "") : "",
+        i === 0 ? escapeCsv(participant.pgy ?? "") : "",
+        escapeCsv(t),
+      ].join(",")
+    );
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `vidstamp_${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
 
-    // TODO: POST to backend
-    // await fetch("/api/save", {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify({ participant, timestamps }),
-    // });
-
+    sessionStorage.setItem(
+      RESTORE_KEY,
+      JSON.stringify({
+        timestamps,
+        videoTime: videoRef.current ? videoRef.current.currentTime : 0,
+      })
+    );
     navigate("/thankyou");
   };
 
@@ -136,8 +184,17 @@ export default function VideoPage() {
               src={VIDEO_URL}
               controls
               width="100%"
-              onEnded={handleEnded}
               style={{ borderRadius: "10px" }}
+              onLoadedMetadata={() => {
+                if (
+                  restoreTimeRef.current != null &&
+                  videoRef.current &&
+                  restoreTimeRef.current > 0
+                ) {
+                  videoRef.current.currentTime = restoreTimeRef.current;
+                  restoreTimeRef.current = null;
+                }
+              }}
             />
             <Box sx={{ mt: 2, display: "flex", gap: 1, flexWrap: "wrap" }}>
               <Button
@@ -171,8 +228,8 @@ export default function VideoPage() {
               sx={{ mt: 3, height: 8, borderRadius: 4 }}
             />
 
-            {finished && (
-              <Box sx={{ mt: 3 }}>
+            {timestamps.length >= 1 && (
+              <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
                 <Button
                   variant="contained"
                   color="success"
