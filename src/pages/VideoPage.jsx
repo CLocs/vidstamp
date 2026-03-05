@@ -68,49 +68,125 @@ export default function VideoPage() {
     navigate("/thankyou");
   };
 
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = (seconds % 60).toFixed(2);
+    return m > 0 ? `${m}:${s.padStart(5, "0")}` : `${s}s`;
+  };
+
   return (
-    <Container maxWidth="md" sx={{ mt: 6, textAlign: "center" }}>
+    <Container maxWidth="lg" sx={{ mt: 6 }}>
       <Paper elevation={4} sx={{ p: 4 }}>
-        <Typography variant="h5" gutterBottom>
+        <Typography variant="h5" gutterBottom sx={{ textAlign: "center" }}>
           Watch the Video
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mb: 1, textAlign: "center" }}
+        >
           Press Space or the button below to record timestamps.
         </Typography>
-        <video
-          ref={videoRef}
-          src={VIDEO_URL}
-          controls
-          width="100%"
-          onEnded={handleEnded}
-          style={{ marginTop: "1.5rem", borderRadius: "10px" }}
-        />
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={handleRecordTimestamp}
-          sx={{ mt: 2 }}
-        >
-          Record timestamp ({timestamps.length})
-        </Button>
-        <LinearProgress
-          variant="determinate"
-          value={progress}
-          sx={{ mt: 3, height: 8, borderRadius: 4 }}
-        />
 
-        {finished && (
-          <Box sx={{ mt: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            gap: 3,
+            alignItems: "flex-start",
+            mt: 2,
+          }}
+        >
+          <Box sx={{ flex: "1 1 auto", minWidth: 0 }}>
+            <video
+              ref={videoRef}
+              src={VIDEO_URL}
+              controls
+              width="100%"
+              onEnded={handleEnded}
+              style={{ borderRadius: "10px" }}
+            />
             <Button
-              variant="contained"
-              color="success"
-              size="large"
-              onClick={handleSubmit}
+              variant="outlined"
+              size="small"
+              onClick={handleRecordTimestamp}
+              sx={{ mt: 2 }}
             >
-              Submit
+              Record timestamp ({timestamps.length})
             </Button>
+            <LinearProgress
+              variant="determinate"
+              value={progress}
+              sx={{ mt: 3, height: 8, borderRadius: 4 }}
+            />
+
+            {finished && (
+              <Box sx={{ mt: 3 }}>
+                <Button
+                  variant="contained"
+                  color="success"
+                  size="large"
+                  onClick={handleSubmit}
+                >
+                  Submit
+                </Button>
+              </Box>
+            )}
           </Box>
-        )}
+
+          <Paper
+            variant="outlined"
+            sx={{
+              width: { xs: "100%", md: 220 },
+              flexShrink: 0,
+              maxHeight: 400,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <Typography
+              variant="subtitle2"
+              sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "divider" }}
+            >
+              Timestamps
+            </Typography>
+            <Box
+              sx={{
+                overflow: "auto",
+                flex: 1,
+                minHeight: 0,
+              }}
+            >
+              {timestamps.length === 0 ? (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ p: 2 }}
+                >
+                  No timestamps yet
+                </Typography>
+              ) : (
+                timestamps.map((t, i) => (
+                  <Box
+                    key={i}
+                    sx={{
+                      px: 2,
+                      py: 0.75,
+                      borderBottom: 1,
+                      borderColor: "divider",
+                      "&:last-child": { borderBottom: 0 },
+                      fontFamily: "monospace",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    {i + 1}. {formatTime(t)}
+                  </Box>
+                ))
+              )}
+            </Box>
+          </Paper>
+        </Box>
       </Paper>
     </Container>
   );
