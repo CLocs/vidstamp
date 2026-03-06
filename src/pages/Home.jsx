@@ -28,7 +28,7 @@ export default function Home() {
     <Container maxWidth="sm" sx={{ textAlign: "center", mt: 10 }}>
       <Box>
         <Typography variant="h3" gutterBottom>
-          Welcome to the Study
+          Welcome to the REFLECT Study
         </Typography>
         <Typography variant="body1" color="text.secondary">
           You’ll watch a short video and answer a few quick questions.

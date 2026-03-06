@@ -1,3 +1,31 @@
+# REFLECT Project
+
+Video annotator to capture timestamps manually marked by survey participants.
+
+## Screenshots
+
+**Welcome (password)**
+
+![Welcome / password](images/welcome-password.png)
+
+**I am a... (Attending / Resident or Fellow, PGY)**
+
+![I am a...](images/i-am-a-attending-pgy.png)
+
+**Watch the video**
+
+![Watch the video](images/watch-the-video.png)
+
+**Thank you**
+
+![Thank you](images/thank-you.png)
+
+**Timestamps / CSV**
+
+![Timestamps CSV](images/timestamps-csv.png)
+
+---
+
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
