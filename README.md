@@ -17,6 +17,8 @@ If you are developing a production application, we recommend using TypeScript wi
 
 # Dev
 
+## Local
+
 Install dependencies
 ```bash
 npm install
@@ -27,5 +29,24 @@ Start dev server
 npm run dev
 ```
 
-Click on the Local URL in the terminal. 
+Click on the Local URL in the terminal.
+
+## Deploy to GitHub Pages
+
+1. **Repo name**  
+   If your GitHub repo is not named `vidstamp`, set the same name in `vite.config.js` → `base: '/your-repo-name/'`.
+
+2. **Install and deploy**  
+   From the project root:
+   ```bash
+   npm install
+   npm run deploy
+   ```
+   This builds the app, adds a `404.html` so routes like `/video` work, and pushes the `dist` folder to the `gh-pages` branch.
+
+3. **Turn on Pages**  
+   On GitHub: **Settings → Pages** → Source: **Deploy from a branch** → Branch: **gh-pages** → folder **/ (root)** → Save.
+
+4. **URL**  
+   The site will be at `https://CLocs.github.io/vidstamp/` (or your repo name).
 
