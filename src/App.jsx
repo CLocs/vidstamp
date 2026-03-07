@@ -7,7 +7,7 @@ import { CssBaseline } from "@mui/material";
 
 export default function App() {
   return (
-    <Router>
+    <Router basename={import.meta.env.BASE_URL}>
       <CssBaseline />
       <Routes>
         <Route path="/" element={<Home />} />

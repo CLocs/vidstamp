@@ -10,10 +10,16 @@ export default function ThankYou() {
         <Typography variant="h4" gutterBottom>
           Thank You!
         </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          Your responses have been recorded successfully.
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+          A CSV file with your timestamps has been downloaded.
         </Typography>
-        <Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Please email that file to the study coordinator to submit your responses.
+        </Typography>
+        <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
+          <Button variant="outlined" onClick={() => navigate("/video")}>
+            Back
+          </Button>
           <Button variant="outlined" onClick={() => navigate("/")}>
             Return Home
           </Button>
