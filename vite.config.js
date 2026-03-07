@@ -4,8 +4,9 @@ import react from '@vitejs/plugin-react'
 import { cloudflare } from "@cloudflare/vite-plugin";
 
 // https://vite.dev/config/
-// base must match your GitHub repo name so assets load correctly on GitHub Pages
+// For Cloudflare Pages at root: set env VITE_BASE_URL=/ (in Pages build settings).
+// Omit it for GitHub Pages so base stays /vidstamp/
 export default defineConfig({
   plugins: [react(), cloudflare()],
-  base: '/vidstamp/',
+  base: process.env.VITE_BASE_URL || '/vidstamp/',
 })
