@@ -1,6 +1,79 @@
 # REFLECT Project
 
-Video annotator to capture timestamps manually marked by survey participants. Now with a back-end. 
+Video annotator to capture timestamps manually marked by survey participants.
+
+---
+
+## Architecture & operations
+
+### The three parts
+
+| Part | Role | Where it runs |
+|------|------|----------------|
+| **GitHub** | Holds the code (frontend + `api/`). Single repo. | GitHub.com |
+| **Cloudflare** | Serves the **frontend** (password, survey, video, thank-you). This is the URL you give participants. | Cloudflare Workers/Pages |
+| **Render** | Runs the **backend API** and stores submissions in SQLite. The frontend sends data here. | Render.com |
+
+**How it fits together**
+
+- One repo on GitHub contains both the React app and the `api/` folder.
+- **Cloudflare** is connected to that repo and builds the whole repo as a frontend (Vite). It only serves the app; it does not run the API.
+- **Render** is connected to the same repo with **Root Directory = `api`**. It only builds and runs the API; it never serves the React app.
+
+So: **one GitHub repo, two separate deployments** (frontend on Cloudflare, API on Render).
+
+**What happens on Submit**
+
+1. User uses the app at your **Cloudflare** URL.
+2. On Submit, the **frontend** sends data to the **Render** API URL (the one in `VITE_VIDSTAMP_API_URL`).
+3. The **Render** service writes to its SQLite DB and returns success/failure.
+4. You get data by calling the Render API (**GET /export** or **GET /export/sessions**) or, if you run the API locally, by opening the DB in DBeaver.
+
+**What you do to update things**
+
+- **Change code:** Push to GitHub. Cloudflare and Render each build and deploy their part from the same repo.
+- **Change frontend env vars (e.g. API URL):** Set them in Cloudflare (Build variables), then trigger a new frontend deploy.
+- **Change API env vars (e.g. API key, DB path):** Set them in Render’s Environment tab; Render redeploys when you save.
+
+**Viewing the backend database (DBeaver vs API)**
+
+- When the API runs **on Render**, the SQLite file lives on Render’s server. You **cannot** connect DBeaver on your PC directly to it (no direct file or DB connection to Render’s disk).
+- **Use the API instead:** Call **GET /export** (CSV) or **GET /export/sessions** (JSON) from a browser or curl, with the `X-API-Key` header if you set one. Open the CSV in Excel or Google Sheets. See `api/README.md` for the exact URLs and examples.
+- **DBeaver** only works when the API runs **locally** and you have the `vidstamp.db` file (e.g. `api/vidstamp.db`). Then in DBeaver: New Connection → SQLite → Path = that file.
+
+---
+
+### Flow and deploy details
+
+| Part | What it is | Where it runs | What you do to update it |
+|------|------------|----------------|---------------------------|
+| **Source code** | The repo (frontend + `api/` backend) | **GitHub** | Edit code, push to `main` (or a branch). |
+| **Frontend** | The React app (password, survey, video, thank-you) | **Cloudflare** (Workers/Pages) | Push to GitHub → Cloudflare auto-builds and deploys from the repo. |
+| **Backend API** | FastAPI app that stores submissions in SQLite | **Render** | Push to GitHub → Render auto-builds and deploys the `api/` folder. |
+
+**How a submission flows**
+
+1. Participant opens the app at **reflect-project.dascolin.workers.dev** (or your Cloudflare URL).
+2. They enter the password, choose role/PGY, watch the video, mark timestamps, and click Submit.
+3. The **frontend** (Cloudflare) sends the data to the **backend** (Render) at `VITE_VIDSTAMP_API_URL` (e.g. `https://vidstamp-api.onrender.com`) via `POST /sessions`.
+4. The **backend** writes the submission to its SQLite database (on Render’s server, or on a Persistent Disk you attached).
+5. You view results by calling the backend: **GET /export** (CSV) or **GET /export/sessions** (JSON), or open the DB in DBeaver only if the API runs locally.
+
+**One repo, two deploys**
+
+- **GitHub** holds a single repo (e.g. `vidstamp`). It has both the React app (root, `src/`, etc.) and the API (`api/`).
+- **Cloudflare** is connected to that repo and builds the **root** of the repo (Vite build). It does **not** run the API.
+- **Render** is connected to the same repo with **Root Directory** set to **`api`**. It only builds and runs the API; it never serves the React app.
+
+So: one push to GitHub can trigger **two** deploys (Cloudflare for frontend, Render for API), each building its own part of the repo. You don’t need to “deploy” from your machine for production; push to GitHub and both sides update.
+
+**Summary**
+
+- **GitHub** = source of truth for code.
+- **Cloudflare** = hosts the frontend; participants use this URL.
+- **Render** = hosts the API and database; frontend talks to it; you get data from it (export or DB).
+
+---
 
 ## Screenshots
 

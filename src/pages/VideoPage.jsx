@@ -14,13 +14,20 @@ const VIDEO_URL =
   "https://pub-05948a525013432aada6712ce583b048.r2.dev/reflect/Sample_Surgery1_cut1a.mp4";
 
 const RESTORE_KEY = "vidstamp_restore";
+const FROM_BACK_KEY = "vidstamp_from_back";
 
 function getInitialTimestamps() {
   try {
-    const raw = sessionStorage.getItem(RESTORE_KEY);
-    if (!raw) return [];
-    const data = JSON.parse(raw);
-    return Array.isArray(data.timestamps) ? data.timestamps : [];
+    // Only restore timestamps when user clicked "Back" from Thank You
+    if (sessionStorage.getItem(FROM_BACK_KEY)) {
+      const raw = sessionStorage.getItem(RESTORE_KEY);
+      if (!raw) return [];
+      const data = JSON.parse(raw);
+      return Array.isArray(data.timestamps) ? data.timestamps : [];
+    }
+    // Normal entry (e.g. from survey): clear any stale restore data and start fresh
+    sessionStorage.removeItem(RESTORE_KEY);
+    return [];
   } catch {
     return [];
   }
@@ -34,16 +41,19 @@ export default function VideoPage() {
   const [progress, setProgress] = useState(0);
   const navigate = useNavigate();
 
-  // Restore video position when returning from Thank You (Back)
+  // Restore video position when returning from Thank You (Back); clear Back flag
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(RESTORE_KEY);
-      if (raw) {
-        const data = JSON.parse(raw);
-        if (typeof data.videoTime === "number" && data.videoTime >= 0) {
-          restoreTimeRef.current = data.videoTime;
+      if (sessionStorage.getItem(FROM_BACK_KEY)) {
+        const raw = sessionStorage.getItem(RESTORE_KEY);
+        if (raw) {
+          const data = JSON.parse(raw);
+          if (typeof data.videoTime === "number" && data.videoTime >= 0) {
+            restoreTimeRef.current = data.videoTime;
+          }
         }
         sessionStorage.removeItem(RESTORE_KEY);
+        sessionStorage.removeItem(FROM_BACK_KEY);
       }
     } catch (_) {}
   }, []);

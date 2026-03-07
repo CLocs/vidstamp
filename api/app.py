@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
@@ -53,6 +54,25 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="REFLECT vidstamp API", lifespan=lifespan)
+
+# CORS: allow frontend (Cloudflare, localhost) to call the API
+_cors_origins = os.environ.get("VIDSTAMP_CORS_ORIGINS", "").strip()
+if _cors_origins:
+    _origins = [o.strip() for o in _cors_origins.split(",") if o.strip()]
+else:
+    _origins = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "https://reflect-project.dascolin.workers.dev",
+    ]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 
 class SessionPayload(BaseModel):

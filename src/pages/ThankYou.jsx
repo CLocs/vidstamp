@@ -42,7 +42,13 @@ export default function ThankYou() {
           Thank you for participating.
         </Typography>
         <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
-          <Button variant="outlined" onClick={() => navigate("/video")}>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              sessionStorage.setItem("vidstamp_from_back", "1");
+              navigate("/video");
+            }}
+          >
             Back
           </Button>
           <Button variant="outlined" onClick={() => navigate("/")}>

@@ -25,20 +25,57 @@ Deploy the API to a cloud host so it runs 24/7. The frontend (Cloudflare) will P
 
 If `VIDSTAMP_REQUIRE_API_KEY` is set, **POST /sessions**, **GET /export**, and **GET /export/sessions** require the **X-API-Key** header.
 
-## Viewing results
+## Viewing production data (Render)
 
-**Option 1: Download CSV from the API**  
-In a browser or with curl, call the export endpoint. If you use an API key, send it in the header:
+Your production data lives on Render. You view it by calling the API — **GET /export** (CSV) or **GET /export/sessions** (JSON). You need your **Render service URL** (e.g. `https://vidstamp-api.onrender.com`) and your **API key** (the same value as `VIDSTAMP_API_KEY` in Render’s Environment).
+
+**Where to enter the commands**
+
+| Where | How |
+|-------|-----|
+| **Terminal (curl)** | Run the curl command below. The CSV is saved to a file; open it in Excel or Sheets. |
+| **Browser (Swagger UI)** | Open `https://YOUR_RENDER_URL/docs`, find **GET /export** or **GET /export/sessions**, click **Try it out**, add the API key in the **X-API-Key** box, click **Execute**. You can copy the response or download. |
+| **Postman / Insomnia** | New GET request to `https://YOUR_RENDER_URL/export`. In Headers add `X-API-Key` = your key. Send; then save or view the response. |
+
+**Commands (replace the placeholders)**
+
+- **YOUR_RENDER_URL** = your Render service URL, e.g. `https://vidstamp-api.onrender.com` (no trailing slash).
+- **YOUR_API_KEY** = the value of `VIDSTAMP_API_KEY` from Render’s Environment tab.
+
+**Download all data as CSV (open in Excel/Sheets):**
 
 ```bash
-# No API key
-curl -o results.csv "https://your-api-url/export"
-
-# With API key
-curl -o results.csv -H "X-API-Key: YOUR_SECRET" "https://your-api-url/export"
+curl -o results.csv -H "X-API-Key: YOUR_API_KEY" "https://YOUR_RENDER_URL/export"
 ```
 
-Open `results.csv` in Excel, Google Sheets, or any spreadsheet app. Columns: `session_id`, `role`, `pgy`, `timestamps` (one row per timestamp; role/pgy repeat on the first row of each session).
+Then open `results.csv` on your computer. Columns: `session_id`, `role`, `pgy`, `timestamps` (one row per timestamp; role/pgy repeat on the first row of each session).
+
+**List sessions as JSON (overview only):**
+
+```bash
+curl -H "X-API-Key: YOUR_API_KEY" "https://YOUR_RENDER_URL/export/sessions"
+```
+
+**If /docs or /export returns "Not found" or 404**
+
+- **Render free tier:** The service may be **asleep**. Open **https://YOUR_RENDER_URL/health** in the browser and wait 30–60 seconds; once it responds with `{"status":"ok"}`, try **/docs** or **/export** again.
+- Try **/redoc** as well (FastAPI’s other docs UI): **https://YOUR_RENDER_URL/redoc**.
+- If **/health** works but **/docs** still 404s, check the Render **Logs** for the service to see if the app is starting correctly.
+
+**Using the docs page in the browser**
+
+1. Open **https://YOUR_RENDER_URL/docs** (e.g. `https://vidstamp-api.onrender.com/docs`). If you see "Not found", wait a minute and retry (service may be waking up), or use **/redoc**.
+2. Find **GET /export** or **GET /export/sessions**.
+3. Click **Try it out**.
+4. In **X-API-Key** (or the header box), enter your API key.
+5. Click **Execute**. The response body is the CSV or JSON; you can copy it or use the “Download” link if the UI offers one.
+
+---
+
+## Viewing results (reference)
+
+**Option 1: Download CSV from the API**  
+See **Viewing production data (Render)** above for full commands and where to run them.
 
 **Option 2: List sessions (JSON)**  
 `GET /export/sessions` returns a JSON array of sessions (session_id, role, pgy, created_at). Good for a quick overview or building a simple dashboard.
@@ -48,6 +85,13 @@ The data lives in the SQLite file at `VIDSTAMP_DB_PATH` (default: `vidstamp.db`)
 
 - **[DB Browser for SQLite](https://sqlitebrowser.org/)** — GUI: open the file, browse the `sessions` table, run queries.
 - **Command line:** `sqlite3 vidstamp.db` then e.g. `SELECT * FROM sessions;` or `SELECT session_id, role, pgy, marks, created_at FROM sessions;`
+
+**DBeaver (when the API runs locally and `api/vidstamp.db` exists):**
+
+1. **Database** → **New Database Connection** → **SQLite** → **Next**.
+2. **Path:** Click **Open...** and select `api/vidstamp.db` (e.g. `C:\Users\dasco\repos\vidstamp\api\vidstamp.db`). **Test connection** → **Finish**.
+3. In the left tree: expand the connection → **Tables** → **sessions**. Right‑click **sessions** → **View Data** → **All rows** (or **F4**). Columns: `id`, `session_id`, `role`, `pgy`, `marks` (JSON), `created_at`.
+4. **SQL:** Right‑click the connection → **SQL Editor** → **New SQL Script**. Run: `SELECT session_id, role, pgy, created_at, marks FROM sessions ORDER BY created_at DESC;` (Ctrl+Enter to execute).
 
 If the API runs on a remote server (e.g. Render), you don’t have direct file access; use Option 1 or 2. For a local run, Option 3 works on the machine where the API and `vidstamp.db` live.
 
@@ -71,6 +115,7 @@ API: http://127.0.0.1:8000. Docs: http://127.0.0.1:8000/docs.
 | `VIDSTAMP_DB_PATH` | SQLite file path (default: `vidstamp.db`) |
 | `VIDSTAMP_REQUIRE_API_KEY` | Set to `1` or `true` to require X-API-Key on protected routes |
 | `VIDSTAMP_API_KEY` | Secret key clients must send as `X-API-Key` when required |
+| `VIDSTAMP_CORS_ORIGINS` | Optional. Comma-separated origins allowed to call the API (e.g. `https://reflect-project.dascolin.workers.dev`). If unset, defaults include localhost and `https://reflect-project.dascolin.workers.dev`. Add preview URLs if needed. |
 
 ## Step-by-step: Deploy to Render
 
