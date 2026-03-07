@@ -21,9 +21,10 @@ Deploy the API to a cloud host so it runs 24/7. The frontend (Cloudflare) will P
 - **POST /sessions** — Store a submission. Body: `{ "session_id": string, "role": string, "marks": number[], "pgy": number? }`. `session_id` must be unique.
 - **GET /export** — Download all sessions as CSV (session_id, role, pgy, timestamps).
 - **GET /export/sessions** — List all sessions (session_id, role, pgy, created_at).
+- **DELETE /sessions** — Delete all sessions (used by the admin “Clear all results” button). Requires API key when enabled.
 - **GET /health** — Health check (no auth).
 
-If `VIDSTAMP_REQUIRE_API_KEY` is set, **POST /sessions**, **GET /export**, and **GET /export/sessions** require the **X-API-Key** header.
+If `VIDSTAMP_REQUIRE_API_KEY` is set, **POST /sessions**, **GET /export**, **GET /export/sessions**, and **DELETE /sessions** require the **X-API-Key** header.
 
 ## Viewing production data (Render)
 

@@ -70,7 +70,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -142,6 +142,16 @@ def export_sessions_list(_: None = Depends(_check_api_key)):
         }
         for r in rows
     ]
+
+
+@app.delete("/sessions")
+def clear_all_sessions(_: None = Depends(_check_api_key)):
+    """Delete all sessions. Requires API key."""
+    conn = get_db()
+    conn.execute("DELETE FROM sessions")
+    conn.commit()
+    conn.close()
+    return {"ok": True, "deleted": "all"}
 
 
 @app.get("/health")

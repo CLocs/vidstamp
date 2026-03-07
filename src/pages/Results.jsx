@@ -14,6 +14,11 @@ import {
   CircularProgress,
   Alert,
   TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
@@ -29,6 +34,8 @@ export default function Results() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const handleAdminLogin = () => {
     if (password.trim().toLowerCase() !== ADMIN_PASSWORD) {
@@ -70,6 +77,28 @@ export default function Results() {
     const interval = setInterval(fetchSessions, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [authenticated]);
+
+  const handleClearAll = async () => {
+    const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL;
+    const apiKey = import.meta.env.VITE_VIDSTAMP_API_KEY;
+    if (!apiBase) return;
+    setClearing(true);
+    setError(null);
+    try {
+      const headers = apiKey ? { "X-API-Key": apiKey } : {};
+      const res = await fetch(`${apiBase.replace(/\/$/, "")}/sessions`, {
+        method: "DELETE",
+        headers,
+      });
+      if (!res.ok) throw new Error(res.statusText || "Clear failed");
+      setClearConfirmOpen(false);
+      await fetchSessions();
+    } catch (err) {
+      setError(err?.message || "Failed to clear results");
+    } finally {
+      setClearing(false);
+    }
+  };
 
   const handleDownloadCsv = () => {
     const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL;
@@ -130,17 +159,41 @@ export default function Results() {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Submissions from the API. Auto-refreshes every 30 seconds.
       </Typography>
-      <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+      <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
         <Button variant="outlined" onClick={fetchSessions} disabled={loading}>
           Refresh
         </Button>
         <Button variant="outlined" onClick={handleDownloadCsv} disabled={!sessions.length}>
           Download CSV
         </Button>
+        <Button
+          variant="outlined"
+          color="error"
+          onClick={() => setClearConfirmOpen(true)}
+          disabled={!sessions.length}
+        >
+          Clear all results
+        </Button>
         <Button variant="outlined" onClick={() => navigate("/")}>
           Back to app
         </Button>
       </Box>
+      <Dialog open={clearConfirmOpen} onClose={() => !clearing && setClearConfirmOpen(false)}>
+        <DialogTitle>Clear all results?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to clear all timestamp data? This cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setClearConfirmOpen(false)} disabled={clearing}>
+            Cancel
+          </Button>
+          <Button onClick={handleClearAll} color="error" variant="contained" disabled={clearing}>
+            {clearing ? "Clearing…" : "Clear all"}
+          </Button>
+        </DialogActions>
+      </Dialog>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
