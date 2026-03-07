@@ -59,7 +59,22 @@ npm run dev
 
 Click on the Local URL in the terminal.
 
-## Deploy to GitHub Pages
+## Deploy frontend
+
+### Cloudflare Pages
+
+1. In Cloudflare Dashboard: **Workers & Pages** → **Create** → **Pages** → **Connect to Git** → select this repo.
+2. Build settings:
+   - **Framework preset:** Vite
+   - **Build command:** `npm run build` (or `npm run build:ghpages` if you need `404.html` for SPA routing; Cloudflare Pages often handles SPA fallback without it)
+   - **Build output directory:** `dist`
+   - If the site is at the root (e.g. `https://your-project.pages.dev/`), set `base: '/'` in `vite.config.js` instead of `'/vidstamp/'`.
+3. **Environment variables** (optional, for backend sync):
+   - `VITE_VIDSTAMP_API_URL` = your API base URL (e.g. `https://your-api.onrender.com`)
+   - `VITE_VIDSTAMP_API_KEY` = your API key if the backend requires `X-API-Key`
+4. Save and deploy. Your site will be at `https://<project-name>.pages.dev` (or your custom domain).
+
+### GitHub Pages
 
 1. **Repo name**  
    If your GitHub repo is not named `vidstamp`, set the same name in `vite.config.js` → `base: '/your-repo-name/'`.
@@ -76,5 +91,17 @@ Click on the Local URL in the terminal.
    On GitHub: **Settings → Pages** → Source: **Deploy from a branch** → Branch: **gh-pages** → folder **/ (root)** → Save.
 
 4. **URL**  
-   The site will be at `https://CLocs.github.io/vidstamp/` (or your repo name).
+   The site will be at `https://<username>.github.io/vidstamp/` (or your repo name).
+
+---
+
+## Backend API (optional)
+
+An optional FastAPI backend stores submissions and provides CSV export. See **[api/README.md](api/README.md)** for:
+
+- **Local run:** `cd api && pip install -r requirements.txt && uvicorn app:app --reload`
+- **Deploy** (e.g. Render): build/start commands, env vars (`VIDSTAMP_DB_PATH`, `VIDSTAMP_REQUIRE_API_KEY`, `VIDSTAMP_API_KEY`)
+- **Endpoints:** `POST /sessions`, `GET /export`, `GET /export/sessions`
+
+If you set **`VITE_VIDSTAMP_API_URL`** (and optionally **`VITE_VIDSTAMP_API_KEY`**) in the frontend build, the app will POST each submission to the API after downloading the CSV and show “(Synced to server)” or “(Sync failed: …)” on the thank-you page.
 

@@ -103,7 +103,7 @@ export default function VideoPage() {
     return s;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const participant = JSON.parse(sessionStorage.getItem("participant")) || {};
     const header = "role,pgy,timestamps";
     const rows = timestamps.map((t, i) =>
@@ -129,6 +129,37 @@ export default function VideoPage() {
         videoTime: videoRef.current ? videoRef.current.currentTime : 0,
       })
     );
+
+    const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL;
+    const apiKey = import.meta.env.VITE_VIDSTAMP_API_KEY;
+    if (apiBase) {
+      const sessionId = `vidstamp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const headers = { "Content-Type": "application/json" };
+      if (apiKey) headers["X-API-Key"] = apiKey;
+      try {
+        const res = await fetch(`${apiBase.replace(/\/$/, "")}/sessions`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            session_id: sessionId,
+            role: participant.role ?? "",
+            pgy: participant.pgy != null ? Number(participant.pgy) : null,
+            marks: timestamps,
+          }),
+        });
+        if (res.ok) {
+          sessionStorage.setItem("vidstamp_api_sync", JSON.stringify({ synced: true }));
+        } else {
+          const err = await res.text();
+          sessionStorage.setItem("vidstamp_api_sync", JSON.stringify({ synced: false, error: err || res.statusText }));
+        }
+      } catch (err) {
+        sessionStorage.setItem("vidstamp_api_sync", JSON.stringify({ synced: false, error: err?.message || "Network error" }));
+      }
+    } else {
+      sessionStorage.removeItem("vidstamp_api_sync");
+    }
+
     navigate("/thankyou");
   };
 
