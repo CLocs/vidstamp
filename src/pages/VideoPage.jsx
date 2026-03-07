@@ -95,32 +95,8 @@ export default function VideoPage() {
     setTimestamps((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));
   };
 
-  const escapeCsv = (val) => {
-    const s = String(val ?? "");
-    if (s.includes(",") || s.includes('"') || s.includes("\n")) {
-      return `"${s.replace(/"/g, '""')}"`;
-    }
-    return s;
-  };
-
   const handleSubmit = async () => {
     const participant = JSON.parse(sessionStorage.getItem("participant")) || {};
-    const header = "role,pgy,timestamps";
-    const rows = timestamps.map((t, i) =>
-      [
-        i === 0 ? escapeCsv(participant.role ?? "") : "",
-        i === 0 ? escapeCsv(participant.pgy ?? "") : "",
-        escapeCsv(t),
-      ].join(",")
-    );
-    const csv = [header, ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `vidstamp_${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
 
     sessionStorage.setItem(
       RESTORE_KEY,

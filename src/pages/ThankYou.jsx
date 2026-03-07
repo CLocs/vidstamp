@@ -26,7 +26,7 @@ export default function ThankYou() {
           Thank You!
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-          A CSV file with your timestamps has been downloaded.
+          Your responses have been submitted.
         </Typography>
         {apiSync.synced === true && (
           <Typography variant="body2" color="success.main" sx={{ mb: 1 }}>
@@ -39,7 +39,7 @@ export default function ThankYou() {
           </Typography>
         )}
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Please email that file to the study coordinator to submit your responses.
+          Thank you for participating.
         </Typography>
         <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
           <Button variant="outlined" onClick={() => navigate("/video")}>
