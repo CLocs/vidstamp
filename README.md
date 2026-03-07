@@ -1,6 +1,6 @@
 # REFLECT Project
 
-Video annotator to capture timestamps manually marked by survey participants.
+Video annotator to capture timestamps manually marked by survey participants. Now with a back-end. 
 
 ## Screenshots
 
