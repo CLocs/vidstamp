@@ -20,7 +20,7 @@ Deploy the API to a cloud host so it runs 24/7. The frontend (Cloudflare) will P
 
 - **POST /sessions** — Store a submission. Body: `{ "session_id": string, "role": string, "marks": number[], "pgy": number? }`. `session_id` must be unique.
 - **GET /export** — Download all sessions as CSV (session_id, role, pgy, timestamps).
-- **GET /export/sessions** — List all sessions (session_id, role, pgy, created_at).
+- **GET /export/sessions** — List all sessions (session_id, role, pgy, created_at, timestamp_count).
 - **DELETE /sessions** — Delete all sessions (used by the admin “Clear all results” button). Requires API key when enabled.
 - **GET /health** — Health check (no auth).
 
@@ -79,7 +79,7 @@ curl -H "X-API-Key: YOUR_API_KEY" "https://YOUR_RENDER_URL/export/sessions"
 See **Viewing production data (Render)** above for full commands and where to run them.
 
 **Option 2: List sessions (JSON)**  
-`GET /export/sessions` returns a JSON array of sessions (session_id, role, pgy, created_at). Good for a quick overview or building a simple dashboard.
+`GET /export/sessions` returns a JSON array of sessions (session_id, role, pgy, created_at, timestamp_count). Good for a quick overview or building a simple dashboard.
 
 **Option 3: SQLite database viewer**  
 The data lives in the SQLite file at `VIDSTAMP_DB_PATH` (default: `vidstamp.db`). You can open it with:

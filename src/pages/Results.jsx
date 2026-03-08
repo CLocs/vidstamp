@@ -212,13 +212,14 @@ export default function Results() {
                 <TableCell>Session ID</TableCell>
                 <TableCell>Role</TableCell>
                 <TableCell>PGY</TableCell>
+                <TableCell align="right">Timestamps</TableCell>
                 <TableCell>Created at</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {sessions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                     No submissions yet.
                   </TableCell>
                 </TableRow>
@@ -230,6 +231,7 @@ export default function Results() {
                     </TableCell>
                     <TableCell>{row.role}</TableCell>
                     <TableCell>{row.pgy ?? "—"}</TableCell>
+                    <TableCell align="right">{row.timestamp_count ?? 0}</TableCell>
                     <TableCell>{row.created_at}</TableCell>
                   </TableRow>
                 ))

@@ -127,21 +127,23 @@ def export_csv(_: None = Depends(_check_api_key)):
 
 @app.get("/export/sessions")
 def export_sessions_list(_: None = Depends(_check_api_key)):
-    """List session_id and created_at for all sessions."""
+    """List session_id, role, pgy, created_at, and timestamp count for all sessions."""
     conn = get_db()
     rows = conn.execute(
-        "SELECT session_id, role, pgy, created_at FROM sessions ORDER BY created_at"
+        "SELECT session_id, role, pgy, marks, created_at FROM sessions ORDER BY created_at"
     ).fetchall()
     conn.close()
-    return [
-        {
+    out = []
+    for r in rows:
+        marks = json.loads(r["marks"]) if r["marks"] else []
+        out.append({
             "session_id": r["session_id"],
             "role": r["role"],
             "pgy": r["pgy"],
             "created_at": r["created_at"],
-        }
-        for r in rows
-    ]
+            "timestamp_count": len(marks),
+        })
+    return out
 
 
 @app.delete("/sessions")
