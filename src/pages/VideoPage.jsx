@@ -14,13 +14,20 @@ const VIDEO_URL =
   "https://pub-05948a525013432aada6712ce583b048.r2.dev/reflect/Sample_Surgery1_cut1a.mp4";
 
 const RESTORE_KEY = "vidstamp_restore";
+const FROM_BACK_KEY = "vidstamp_from_back";
 
 function getInitialTimestamps() {
   try {
-    const raw = sessionStorage.getItem(RESTORE_KEY);
-    if (!raw) return [];
-    const data = JSON.parse(raw);
-    return Array.isArray(data.timestamps) ? data.timestamps : [];
+    // Only restore timestamps when user clicked "Back" from Thank You
+    if (sessionStorage.getItem(FROM_BACK_KEY)) {
+      const raw = sessionStorage.getItem(RESTORE_KEY);
+      if (!raw) return [];
+      const data = JSON.parse(raw);
+      return Array.isArray(data.timestamps) ? data.timestamps : [];
+    }
+    // Normal entry (e.g. from survey): clear any stale restore data and start fresh
+    sessionStorage.removeItem(RESTORE_KEY);
+    return [];
   } catch {
     return [];
   }
@@ -34,16 +41,19 @@ export default function VideoPage() {
   const [progress, setProgress] = useState(0);
   const navigate = useNavigate();
 
-  // Restore video position when returning from Thank You (Back)
+  // Restore video position when returning from Thank You (Back); clear Back flag
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(RESTORE_KEY);
-      if (raw) {
-        const data = JSON.parse(raw);
-        if (typeof data.videoTime === "number" && data.videoTime >= 0) {
-          restoreTimeRef.current = data.videoTime;
+      if (sessionStorage.getItem(FROM_BACK_KEY)) {
+        const raw = sessionStorage.getItem(RESTORE_KEY);
+        if (raw) {
+          const data = JSON.parse(raw);
+          if (typeof data.videoTime === "number" && data.videoTime >= 0) {
+            restoreTimeRef.current = data.videoTime;
+          }
         }
         sessionStorage.removeItem(RESTORE_KEY);
+        sessionStorage.removeItem(FROM_BACK_KEY);
       }
     } catch (_) {}
   }, []);
@@ -95,32 +105,8 @@ export default function VideoPage() {
     setTimestamps((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));
   };
 
-  const escapeCsv = (val) => {
-    const s = String(val ?? "");
-    if (s.includes(",") || s.includes('"') || s.includes("\n")) {
-      return `"${s.replace(/"/g, '""')}"`;
-    }
-    return s;
-  };
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const participant = JSON.parse(sessionStorage.getItem("participant")) || {};
-    const header = "role,pgy,timestamps";
-    const rows = timestamps.map((t, i) =>
-      [
-        i === 0 ? escapeCsv(participant.role ?? "") : "",
-        i === 0 ? escapeCsv(participant.pgy ?? "") : "",
-        escapeCsv(t),
-      ].join(",")
-    );
-    const csv = [header, ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `vidstamp_${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
 
     sessionStorage.setItem(
       RESTORE_KEY,
@@ -129,6 +115,37 @@ export default function VideoPage() {
         videoTime: videoRef.current ? videoRef.current.currentTime : 0,
       })
     );
+
+    const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL;
+    const apiKey = import.meta.env.VITE_VIDSTAMP_API_KEY;
+    if (apiBase) {
+      const sessionId = `vidstamp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const headers = { "Content-Type": "application/json" };
+      if (apiKey) headers["X-API-Key"] = apiKey;
+      try {
+        const res = await fetch(`${apiBase.replace(/\/$/, "")}/sessions`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            session_id: sessionId,
+            role: participant.role ?? "",
+            pgy: participant.pgy != null ? Number(participant.pgy) : null,
+            marks: timestamps,
+          }),
+        });
+        if (res.ok) {
+          sessionStorage.setItem("vidstamp_api_sync", JSON.stringify({ synced: true }));
+        } else {
+          const err = await res.text();
+          sessionStorage.setItem("vidstamp_api_sync", JSON.stringify({ synced: false, error: err || res.statusText }));
+        }
+      } catch (err) {
+        sessionStorage.setItem("vidstamp_api_sync", JSON.stringify({ synced: false, error: err?.message || "Network error" }));
+      }
+    } else {
+      sessionStorage.removeItem("vidstamp_api_sync");
+    }
+
     navigate("/thankyou");
   };
 
