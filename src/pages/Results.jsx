@@ -22,34 +22,68 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
-const AUTH_KEY = "vidstamp_results_authenticated";
+const ADMIN_TOKEN_KEY = "vidstamp_admin_token";
 const REFRESH_INTERVAL_MS = 30000; // 30 seconds
-const ADMIN_PASSWORD = "obgyn"; // same as study entry password
+
+function getApiBase() {
+  return import.meta.env.VITE_VIDSTAMP_API_URL?.replace(/\/$/, "");
+}
+
+function getAuthHeaders() {
+  const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+  if (token) return { Authorization: `Bearer ${token}` };
+  return {};
+}
 
 export default function Results() {
   const navigate = useNavigate();
-  const [authenticated, setAuthenticated] = useState(() => sessionStorage.getItem(AUTH_KEY) === "1");
+  const [authenticated, setAuthenticated] = useState(() => !!sessionStorage.getItem(ADMIN_TOKEN_KEY));
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
 
-  const handleAdminLogin = () => {
-    if (password.trim().toLowerCase() !== ADMIN_PASSWORD) {
-      setPasswordError("Incorrect password");
+  const handleAdminLogin = async () => {
+    const apiBase = getApiBase();
+    if (!apiBase) {
+      setPasswordError("API not configured");
+      return;
+    }
+    if (!password.trim()) {
+      setPasswordError("Enter the password");
       return;
     }
     setPasswordError("");
-    sessionStorage.setItem(AUTH_KEY, "1");
-    setAuthenticated(true);
+    setLoginLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: password.trim(), scope: "admin" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPasswordError(data.detail || "Incorrect password");
+        return;
+      }
+      const token = data.access_token;
+      if (token) {
+        sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+        setAuthenticated(true);
+      }
+    } catch (err) {
+      setPasswordError(err?.message || "Network error");
+    } finally {
+      setLoginLoading(false);
+    }
   };
 
   const fetchSessions = async () => {
-    const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL;
-    const apiKey = import.meta.env.VITE_VIDSTAMP_API_KEY;
+    const apiBase = getApiBase();
     if (!apiBase) {
       setError("API URL not configured");
       setLoading(false);
@@ -57,9 +91,12 @@ export default function Results() {
     }
     setError(null);
     try {
-      const headers = {};
-      if (apiKey) headers["X-API-Key"] = apiKey;
-      const res = await fetch(`${apiBase.replace(/\/$/, "")}/export/sessions`, { headers });
+      const res = await fetch(`${apiBase}/export/sessions`, { headers: getAuthHeaders() });
+      if (res.status === 401) {
+        sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+        setAuthenticated(false);
+        return;
+      }
       if (!res.ok) throw new Error(res.statusText || "Export failed");
       const data = await res.json();
       setSessions(Array.isArray(data) ? data : []);
@@ -79,17 +116,21 @@ export default function Results() {
   }, [authenticated]);
 
   const handleClearAll = async () => {
-    const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL;
-    const apiKey = import.meta.env.VITE_VIDSTAMP_API_KEY;
+    const apiBase = getApiBase();
     if (!apiBase) return;
     setClearing(true);
     setError(null);
     try {
-      const headers = apiKey ? { "X-API-Key": apiKey } : {};
-      const res = await fetch(`${apiBase.replace(/\/$/, "")}/sessions`, {
+      const res = await fetch(`${apiBase}/sessions`, {
         method: "DELETE",
-        headers,
+        headers: getAuthHeaders(),
       });
+      if (res.status === 401) {
+        sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+        setAuthenticated(false);
+        setClearConfirmOpen(false);
+        return;
+      }
       if (!res.ok) throw new Error(res.statusText || "Clear failed");
       setClearConfirmOpen(false);
       await fetchSessions();
@@ -101,14 +142,20 @@ export default function Results() {
   };
 
   const handleDownloadCsv = () => {
-    const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL;
-    const apiKey = import.meta.env.VITE_VIDSTAMP_API_KEY;
+    const apiBase = getApiBase();
     if (!apiBase) return;
-    const url = `${apiBase.replace(/\/$/, "")}/export`;
-    const headers = apiKey ? { "X-API-Key": apiKey } : {};
-    fetch(url, { headers })
-      .then((r) => r.text())
+    const url = `${apiBase}/export`;
+    fetch(url, { headers: getAuthHeaders() })
+      .then((r) => {
+        if (r.status === 401) {
+          sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+          setAuthenticated(false);
+          return null;
+        }
+        return r.text();
+      })
       .then((csv) => {
+        if (csv == null) return;
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
@@ -144,8 +191,8 @@ export default function Results() {
           autoComplete="off"
           sx={{ mb: 2 }}
         />
-        <Button variant="contained" onClick={handleAdminLogin}>
-          View results
+        <Button variant="contained" onClick={handleAdminLogin} disabled={loginLoading}>
+          {loginLoading ? "Checking…" : "View results"}
         </Button>
       </Container>
     );

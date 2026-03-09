@@ -1,0 +1,15 @@
+[project]
+name = "vidstamp-api"
+version = "0.1.0"
+description = "REFLECT vidstamp backend API — session storage and CSV export"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "PyJWT>=2.8.0",
+    "bcrypt>=4.1.0",
+]
+
+[tool.uv]
+dev-dependencies = []

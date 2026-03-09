@@ -116,14 +116,14 @@ export default function VideoPage() {
       })
     );
 
-    const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL;
-    const apiKey = import.meta.env.VITE_VIDSTAMP_API_KEY;
+    const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL?.replace(/\/$/, "");
+    const entryToken = sessionStorage.getItem("vidstamp_entry_token");
     if (apiBase) {
       const sessionId = `vidstamp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
       const headers = { "Content-Type": "application/json" };
-      if (apiKey) headers["X-API-Key"] = apiKey;
+      if (entryToken) headers["Authorization"] = `Bearer ${entryToken}`;
       try {
-        const res = await fetch(`${apiBase.replace(/\/$/, "")}/sessions`, {
+        const res = await fetch(`${apiBase}/sessions`, {
           method: "POST",
           headers,
           body: JSON.stringify({

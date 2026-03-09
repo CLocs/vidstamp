@@ -5,23 +5,49 @@ import {
   Typography,
   Button,
   TextField,
+  CircularProgress,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
-const ENTRY_PASSWORD = "obgyn";
+const ENTRY_TOKEN_KEY = "vidstamp_entry_token";
+const API_BASE = import.meta.env.VITE_VIDSTAMP_API_URL?.replace(/\/$/, "");
 
 export default function Home() {
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleStart = () => {
-    if (password.trim().toLowerCase() !== ENTRY_PASSWORD) {
-      setError("Incorrect password");
+  const handleStart = async () => {
+    if (!password.trim()) {
+      setError("Enter the password");
+      return;
+    }
+    if (!API_BASE) {
+      setError("API not configured");
       return;
     }
     setError("");
-    navigate("/survey");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: password.trim(), scope: "entry" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.detail || "Incorrect password");
+        return;
+      }
+      const token = data.access_token;
+      if (token) sessionStorage.setItem(ENTRY_TOKEN_KEY, token);
+      navigate("/survey");
+    } catch (err) {
+      setError(err?.message || "Network error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -56,8 +82,9 @@ export default function Home() {
           size="large"
           sx={{ mt: 3 }}
           onClick={handleStart}
+          disabled={loading}
         >
-          Start
+          {loading ? <CircularProgress size={24} color="inherit" /> : "Start"}
         </Button>
       </Box>
     </Container>
