@@ -3,6 +3,7 @@ import Home from "./pages/Home";
 import Survey from "./pages/Survey";
 import VideoPage from "./pages/VideoPage";
 import ThankYou from "./pages/ThankYou";
+import Results from "./pages/Results";
 import { CssBaseline } from "@mui/material";
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/survey" element={<Survey />} />
         <Route path="/video" element={<VideoPage />} />
         <Route path="/thankyou" element={<ThankYou />} />
+        <Route path="/results" element={<Results />} />
       </Routes>
     </Router>
   );

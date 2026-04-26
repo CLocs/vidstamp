@@ -1,8 +1,23 @@
+import { useEffect, useState } from "react";
 import { Container, Typography, Box, Paper, Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
+const API_SYNC_KEY = "vidstamp_api_sync";
+
 export default function ThankYou() {
   const navigate = useNavigate();
+  const [apiSync, setApiSync] = useState({ synced: null, error: null });
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(API_SYNC_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        setApiSync({ synced: data.synced, error: data.error || null });
+        sessionStorage.removeItem(API_SYNC_KEY);
+      }
+    } catch (_) {}
+  }, []);
 
   return (
     <Container maxWidth="sm" sx={{ mt: 10 }}>
@@ -11,13 +26,29 @@ export default function ThankYou() {
           Thank You!
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-          A CSV file with your timestamps has been downloaded.
+          Your responses have been submitted.
         </Typography>
+        {apiSync.synced === true && (
+          <Typography variant="body2" color="success.main" sx={{ mb: 1 }}>
+            (Synced to server)
+          </Typography>
+        )}
+        {apiSync.synced === false && (
+          <Typography variant="body2" color="error.main" sx={{ mb: 1 }}>
+            (Sync failed: {apiSync.error || "Unknown error"})
+          </Typography>
+        )}
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Please email that file to the study coordinator to submit your responses.
+          Thank you for participating.
         </Typography>
         <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
-          <Button variant="outlined" onClick={() => navigate("/video")}>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              sessionStorage.setItem("vidstamp_from_back", "1");
+              navigate("/video");
+            }}
+          >
             Back
           </Button>
           <Button variant="outlined" onClick={() => navigate("/")}>

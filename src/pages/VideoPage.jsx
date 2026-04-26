@@ -9,18 +9,25 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
-// Your R2 public URL (from bucket Public access / R2 dev subdomain or custom domain)
-const VIDEO_URL =
+// Default R2 public URL (used as a fallback)
+const DEFAULT_VIDEO_URL =
   "https://pub-05948a525013432aada6712ce583b048.r2.dev/reflect/Sample_Surgery1_cut1a.mp4";
 
 const RESTORE_KEY = "vidstamp_restore";
+const FROM_BACK_KEY = "vidstamp_from_back";
 
 function getInitialTimestamps() {
   try {
-    const raw = sessionStorage.getItem(RESTORE_KEY);
-    if (!raw) return [];
-    const data = JSON.parse(raw);
-    return Array.isArray(data.timestamps) ? data.timestamps : [];
+    // Only restore timestamps when user clicked "Back" from Thank You
+    if (sessionStorage.getItem(FROM_BACK_KEY)) {
+      const raw = sessionStorage.getItem(RESTORE_KEY);
+      if (!raw) return [];
+      const data = JSON.parse(raw);
+      return Array.isArray(data.timestamps) ? data.timestamps : [];
+    }
+    // Normal entry (e.g. from survey): clear any stale restore data and start fresh
+    sessionStorage.removeItem(RESTORE_KEY);
+    return [];
   } catch {
     return [];
   }
@@ -32,29 +39,46 @@ export default function VideoPage() {
   const restoreTimeRef = useRef(null);
   const [timestamps, setTimestamps] = useState(getInitialTimestamps);
   const [progress, setProgress] = useState(0);
+  const [videoUrl, setVideoUrl] = useState(DEFAULT_VIDEO_URL);
   const navigate = useNavigate();
 
-  // Restore video position when returning from Thank You (Back)
+  // Restore video position when returning from Thank You (Back); clear Back flag
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(RESTORE_KEY);
-      if (raw) {
-        const data = JSON.parse(raw);
-        if (typeof data.videoTime === "number" && data.videoTime >= 0) {
-          restoreTimeRef.current = data.videoTime;
+      if (sessionStorage.getItem(FROM_BACK_KEY)) {
+        const raw = sessionStorage.getItem(RESTORE_KEY);
+        if (raw) {
+          const data = JSON.parse(raw);
+          if (typeof data.videoTime === "number" && data.videoTime >= 0) {
+            restoreTimeRef.current = data.videoTime;
+          }
         }
         sessionStorage.removeItem(RESTORE_KEY);
+        sessionStorage.removeItem(FROM_BACK_KEY);
       }
     } catch (_) {}
   }, []);
 
-  // Listen for m (record) and u (undo)
+  // Load global video URL from backend configuration
+  useEffect(() => {
+    const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL?.replace(/\/$/, "");
+    if (!apiBase) return;
+    fetch(`${apiBase}/config/video-url`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const next = data?.video_url?.trim();
+        if (next) setVideoUrl(next);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Listen for r (record) and u (undo)
   useEffect(() => {
     const handleKeyDown = (e) => {
       const inInput = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName);
       if (inInput) return;
 
-      if (e.key === "m") {
+      if (e.key.toLowerCase() === "r") {
         e.preventDefault();
         if (videoRef.current) {
           const t = videoRef.current.currentTime.toFixed(2);
@@ -62,7 +86,7 @@ export default function VideoPage() {
         }
         return;
       }
-      if (e.key === "u") {
+      if (e.key.toLowerCase() === "u") {
         e.preventDefault();
         setTimestamps((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));
         return;
@@ -95,32 +119,8 @@ export default function VideoPage() {
     setTimestamps((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));
   };
 
-  const escapeCsv = (val) => {
-    const s = String(val ?? "");
-    if (s.includes(",") || s.includes('"') || s.includes("\n")) {
-      return `"${s.replace(/"/g, '""')}"`;
-    }
-    return s;
-  };
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const participant = JSON.parse(sessionStorage.getItem("participant")) || {};
-    const header = "role,pgy,timestamps";
-    const rows = timestamps.map((t, i) =>
-      [
-        i === 0 ? escapeCsv(participant.role ?? "") : "",
-        i === 0 ? escapeCsv(participant.pgy ?? "") : "",
-        escapeCsv(t),
-      ].join(",")
-    );
-    const csv = [header, ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `vidstamp_${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
 
     sessionStorage.setItem(
       RESTORE_KEY,
@@ -129,6 +129,38 @@ export default function VideoPage() {
         videoTime: videoRef.current ? videoRef.current.currentTime : 0,
       })
     );
+
+    const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL;
+    const apiKey = import.meta.env.VITE_VIDSTAMP_API_KEY;
+    if (apiBase) {
+      const sessionId = `vidstamp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const headers = { "Content-Type": "application/json" };
+      if (apiKey) headers["X-API-Key"] = apiKey;
+      try {
+        const res = await fetch(`${apiBase.replace(/\/$/, "")}/sessions`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            session_id: sessionId,
+            role: participant.role ?? "",
+            pgy: participant.pgy != null ? Number(participant.pgy) : null,
+            video_url: videoUrl,
+            marks: timestamps,
+          }),
+        });
+        if (res.ok) {
+          sessionStorage.setItem("vidstamp_api_sync", JSON.stringify({ synced: true }));
+        } else {
+          const err = await res.text();
+          sessionStorage.setItem("vidstamp_api_sync", JSON.stringify({ synced: false, error: err || res.statusText }));
+        }
+      } catch (err) {
+        sessionStorage.setItem("vidstamp_api_sync", JSON.stringify({ synced: false, error: err?.message || "Network error" }));
+      }
+    } else {
+      sessionStorage.removeItem("vidstamp_api_sync");
+    }
+
     navigate("/thankyou");
   };
 
@@ -166,7 +198,7 @@ export default function VideoPage() {
             },
           }}
         >
-          Record: <kbd>M</kbd>. Undo: <kbd>U</kbd>.
+          Record: <kbd>R</kbd>. Undo: <kbd>U</kbd>.
         </Typography>
 
         <Box
@@ -181,7 +213,7 @@ export default function VideoPage() {
           <Box sx={{ flex: "1 1 auto", minWidth: 0 }}>
             <video
               ref={videoRef}
-              src={VIDEO_URL}
+              src={videoUrl}
               controls
               width="100%"
               style={{ borderRadius: "10px" }}
@@ -203,7 +235,7 @@ export default function VideoPage() {
                 onClick={handleRecordTimestamp}
                 sx={{ borderWidth: 3 }}
               >
-                ✅ Record timestamp
+                ✅ Record timestamp (r)
               </Button>
               <Button
                 variant="outlined"
@@ -219,7 +251,7 @@ export default function VideoPage() {
                   },
                 }}
               >
-                ↩️ Undo
+                ↩️ Undo (u)
               </Button>
             </Box>
             <LinearProgress
