@@ -180,7 +180,7 @@ def export_csv(_: None = Depends(_check_api_key)):
 
     out = io.StringIO()
     w = csv.writer(out)
-    w.writerow(["session_id", "role", "pgy", "video_name", "timestamps"])
+    w.writerow(["session_id", "role", "pgy", "video_name", "created_at", "timestamps"])
     for r in rows:
         marks = json.loads(r["marks"])
         for i, t in enumerate(marks):
@@ -189,6 +189,7 @@ def export_csv(_: None = Depends(_check_api_key)):
                 r["role"] if i == 0 else "",
                 r["pgy"] if i == 0 else "",
                 r["video_name"] if i == 0 else "",
+                r["created_at"] if i == 0 else "",
                 t,
             ])
     return PlainTextResponse(out.getvalue(), media_type="text/csv")

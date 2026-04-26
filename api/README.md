@@ -22,7 +22,7 @@ Deploy the API to a cloud host so it runs 24/7. The frontend (Cloudflare) will P
 - **GET /config/video-url** — Get global video URL used by participant page.
 - **PUT /config/video-url** — Set global video URL. Body: `{ "video_url": string }`. Requires API key when enabled.
 - **DELETE /config/video-url** — Reset global video URL to default. Requires API key when enabled.
-- **GET /export** — Download all sessions as CSV (session_id, role, pgy, video_name, timestamps).
+- **GET /export** — Download all sessions as CSV (session_id, role, pgy, video_name, created_at, timestamps).
 - **GET /export/sessions** — List all sessions (session_id, role, pgy, video_name, created_at, timestamp_count).
 - **DELETE /sessions** — Delete all sessions (used by the admin “Clear all results” button). Requires API key when enabled.
 - **GET /health** — Health check (no auth).
@@ -52,7 +52,7 @@ Your production data lives on Render. You view it by calling the API — **GET /
 curl -o results.csv -H "X-API-Key: YOUR_API_KEY" "https://YOUR_RENDER_URL/export"
 ```
 
-Then open `results.csv` on your computer. Columns: `session_id`, `role`, `pgy`, `video_name`, `timestamps` (one row per timestamp; role/pgy/video repeat on the first row of each session).
+Then open `results.csv` on your computer. Columns: `session_id`, `role`, `pgy`, `video_name`, `created_at`, `timestamps` (one row per timestamp; role/pgy/video/created_at repeat on the first row of each session).
 
 **List sessions as JSON (overview only):**
 
