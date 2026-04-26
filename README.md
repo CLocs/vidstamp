@@ -172,9 +172,9 @@ Click on the Local URL in the terminal.
 
 An optional FastAPI backend stores submissions and provides CSV export. See **[api/README.md](api/README.md)** for:
 
-- **Local run:** `cd api && pip install -r requirements.txt && uvicorn app:app --reload`
+- **Local run:** `cd api && uv sync && uv run uvicorn app:app --reload` (or pip/venv)
 - **Deploy** (e.g. Render): build/start commands, env vars (`VIDSTAMP_DB_PATH`, `VIDSTAMP_REQUIRE_API_KEY`, `VIDSTAMP_API_KEY`)
-- **Endpoints:** `POST /sessions`, `GET /export`, `GET /export/sessions`
+- **Endpoints:** `POST /sessions`, `GET/PUT/DELETE /config/video-url`, `GET /export`, `GET /export/sessions`, `DELETE /sessions`
 
-If you set **`VITE_VIDSTAMP_API_URL`** (and optionally **`VITE_VIDSTAMP_API_KEY`**) in the frontend build, the app will POST each submission to the API after downloading the CSV and show “(Synced to server)” or “(Sync failed: …)” on the thank-you page.
+If you set **`VITE_VIDSTAMP_API_URL`** (and optionally **`VITE_VIDSTAMP_API_KEY`**) in the frontend build, the app will POST each submission to the API and show “(Synced to server)” or “(Sync failed: …)” on the thank-you page. The admin results page can also set a **global video URL** through the backend config endpoint.
 

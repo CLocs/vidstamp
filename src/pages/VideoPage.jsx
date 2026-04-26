@@ -72,13 +72,13 @@ export default function VideoPage() {
       .catch(() => {});
   }, []);
 
-  // Listen for m (record) and u (undo)
+  // Listen for r (record) and u (undo)
   useEffect(() => {
     const handleKeyDown = (e) => {
       const inInput = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName);
       if (inInput) return;
 
-      if (e.key === "m") {
+      if (e.key.toLowerCase() === "r") {
         e.preventDefault();
         if (videoRef.current) {
           const t = videoRef.current.currentTime.toFixed(2);
@@ -86,7 +86,7 @@ export default function VideoPage() {
         }
         return;
       }
-      if (e.key === "u") {
+      if (e.key.toLowerCase() === "u") {
         e.preventDefault();
         setTimestamps((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));
         return;
@@ -197,7 +197,7 @@ export default function VideoPage() {
             },
           }}
         >
-          Record: <kbd>M</kbd>. Undo: <kbd>U</kbd>.
+          Record: <kbd>R</kbd>. Undo: <kbd>U</kbd>.
         </Typography>
 
         <Box
@@ -234,7 +234,7 @@ export default function VideoPage() {
                 onClick={handleRecordTimestamp}
                 sx={{ borderWidth: 3 }}
               >
-                ✅ Record timestamp
+                ✅ Record timestamp (r)
               </Button>
               <Button
                 variant="outlined"
@@ -250,7 +250,7 @@ export default function VideoPage() {
                   },
                 }}
               >
-                ↩️ Undo
+                ↩️ Undo (u)
               </Button>
             </Box>
             <LinearProgress
