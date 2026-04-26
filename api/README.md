@@ -18,12 +18,12 @@ Deploy the API to a cloud host so it runs 24/7. The frontend (Cloudflare) will P
 
 ## Endpoints
 
-- **POST /sessions** — Store a submission. Body: `{ "session_id": string, "role": string, "marks": number[], "pgy": number? }`. `session_id` must be unique.
+- **POST /sessions** — Store a submission. Body: `{ "session_id": string, "role": string, "marks": number[], "pgy": number?, "video_url": string? }`. `session_id` must be unique. The API stores `video_name` from the URL path (e.g. `Sample_Surgery1_cut1a.mp4`).
 - **GET /config/video-url** — Get global video URL used by participant page.
 - **PUT /config/video-url** — Set global video URL. Body: `{ "video_url": string }`. Requires API key when enabled.
 - **DELETE /config/video-url** — Reset global video URL to default. Requires API key when enabled.
-- **GET /export** — Download all sessions as CSV (session_id, role, pgy, timestamps).
-- **GET /export/sessions** — List all sessions (session_id, role, pgy, created_at, timestamp_count).
+- **GET /export** — Download all sessions as CSV (session_id, role, pgy, video_name, timestamps).
+- **GET /export/sessions** — List all sessions (session_id, role, pgy, video_name, created_at, timestamp_count).
 - **DELETE /sessions** — Delete all sessions (used by the admin “Clear all results” button). Requires API key when enabled.
 - **GET /health** — Health check (no auth).
 
@@ -52,7 +52,7 @@ Your production data lives on Render. You view it by calling the API — **GET /
 curl -o results.csv -H "X-API-Key: YOUR_API_KEY" "https://YOUR_RENDER_URL/export"
 ```
 
-Then open `results.csv` on your computer. Columns: `session_id`, `role`, `pgy`, `timestamps` (one row per timestamp; role/pgy repeat on the first row of each session).
+Then open `results.csv` on your computer. Columns: `session_id`, `role`, `pgy`, `video_name`, `timestamps` (one row per timestamp; role/pgy/video repeat on the first row of each session).
 
 **List sessions as JSON (overview only):**
 
@@ -82,7 +82,7 @@ curl -H "X-API-Key: YOUR_API_KEY" "https://YOUR_RENDER_URL/export/sessions"
 See **Viewing production data (Render)** above for full commands and where to run them.
 
 **Option 2: List sessions (JSON)**  
-`GET /export/sessions` returns a JSON array of sessions (session_id, role, pgy, created_at, timestamp_count). Good for a quick overview or building a simple dashboard.
+`GET /export/sessions` returns a JSON array of sessions (session_id, role, pgy, video_name, created_at, timestamp_count). Good for a quick overview or building a simple dashboard.
 
 **Option 3: SQLite database viewer**  
 The data lives in the SQLite file at `VIDSTAMP_DB_PATH` (default: `vidstamp.db`). You can open it with:

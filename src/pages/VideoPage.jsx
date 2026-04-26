@@ -144,6 +144,7 @@ export default function VideoPage() {
             session_id: sessionId,
             role: participant.role ?? "",
             pgy: participant.pgy != null ? Number(participant.pgy) : null,
+            video_url: videoUrl,
             marks: timestamps,
           }),
         });

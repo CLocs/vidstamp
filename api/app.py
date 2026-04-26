@@ -7,6 +7,7 @@ import os
 import sqlite3
 from contextlib import asynccontextmanager
 from typing import Optional
+from urllib.parse import unquote, urlparse
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,10 +37,15 @@ def init_db():
             session_id TEXT NOT NULL UNIQUE,
             role TEXT NOT NULL,
             pgy INTEGER,
+            video_name TEXT,
             marks TEXT NOT NULL,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
     """)
+    # Backward-compatible migration for existing databases
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(sessions)").fetchall()]
+    if "video_name" not in cols:
+        conn.execute("ALTER TABLE sessions ADD COLUMN video_name TEXT")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS app_config (
             key TEXT PRIMARY KEY,
@@ -91,6 +97,7 @@ class SessionPayload(BaseModel):
     role: str
     marks: list[float]
     pgy: Optional[int] = None
+    video_url: Optional[str] = None
 
 
 class VideoUrlPayload(BaseModel):
@@ -100,14 +107,16 @@ class VideoUrlPayload(BaseModel):
 @app.post("/sessions")
 def post_session(body: SessionPayload, _: None = Depends(_check_api_key)):
     """Store a session (role, pgy, timestamps). session_id should be unique per submission."""
+    parsed_path = urlparse(body.video_url or "").path
+    video_name = os.path.basename(unquote(parsed_path)).strip() or None
     conn = get_db()
     try:
         conn.execute(
-            "INSERT INTO sessions (session_id, role, pgy, marks) VALUES (?, ?, ?, ?)",
-            (body.session_id, body.role, body.pgy, json.dumps(body.marks)),
+            "INSERT INTO sessions (session_id, role, pgy, video_name, marks) VALUES (?, ?, ?, ?, ?)",
+            (body.session_id, body.role, body.pgy, video_name, json.dumps(body.marks)),
         )
         conn.commit()
-        return {"ok": True, "session_id": body.session_id}
+        return {"ok": True, "session_id": body.session_id, "video_name": video_name}
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=409, detail="session_id already exists")
     finally:
@@ -165,13 +174,13 @@ def export_csv(_: None = Depends(_check_api_key)):
     import io
     conn = get_db()
     rows = conn.execute(
-        "SELECT session_id, role, pgy, marks, created_at FROM sessions ORDER BY created_at"
+        "SELECT session_id, role, pgy, video_name, marks, created_at FROM sessions ORDER BY created_at"
     ).fetchall()
     conn.close()
 
     out = io.StringIO()
     w = csv.writer(out)
-    w.writerow(["session_id", "role", "pgy", "timestamps"])
+    w.writerow(["session_id", "role", "pgy", "video_name", "timestamps"])
     for r in rows:
         marks = json.loads(r["marks"])
         for i, t in enumerate(marks):
@@ -179,6 +188,7 @@ def export_csv(_: None = Depends(_check_api_key)):
                 r["session_id"] if i == 0 else "",
                 r["role"] if i == 0 else "",
                 r["pgy"] if i == 0 else "",
+                r["video_name"] if i == 0 else "",
                 t,
             ])
     return PlainTextResponse(out.getvalue(), media_type="text/csv")
@@ -186,10 +196,10 @@ def export_csv(_: None = Depends(_check_api_key)):
 
 @app.get("/export/sessions")
 def export_sessions_list(_: None = Depends(_check_api_key)):
-    """List session_id, role, pgy, created_at, and timestamp count for all sessions."""
+    """List session_id, role, pgy, video_name, created_at, and timestamp count for all sessions."""
     conn = get_db()
     rows = conn.execute(
-        "SELECT session_id, role, pgy, marks, created_at FROM sessions ORDER BY created_at"
+        "SELECT session_id, role, pgy, video_name, marks, created_at FROM sessions ORDER BY created_at"
     ).fetchall()
     conn.close()
     out = []
@@ -199,6 +209,7 @@ def export_sessions_list(_: None = Depends(_check_api_key)):
             "session_id": r["session_id"],
             "role": r["role"],
             "pgy": r["pgy"],
+            "video_name": r["video_name"],
             "created_at": r["created_at"],
             "timestamp_count": len(marks),
         })
