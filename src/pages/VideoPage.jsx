@@ -9,8 +9,8 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
-// Your R2 public URL (from bucket Public access / R2 dev subdomain or custom domain)
-const VIDEO_URL =
+// Default R2 public URL (used as a fallback)
+const DEFAULT_VIDEO_URL =
   "https://pub-05948a525013432aada6712ce583b048.r2.dev/reflect/Sample_Surgery1_cut1a.mp4";
 
 const RESTORE_KEY = "vidstamp_restore";
@@ -39,6 +39,7 @@ export default function VideoPage() {
   const restoreTimeRef = useRef(null);
   const [timestamps, setTimestamps] = useState(getInitialTimestamps);
   const [progress, setProgress] = useState(0);
+  const [videoUrl, setVideoUrl] = useState(DEFAULT_VIDEO_URL);
   const navigate = useNavigate();
 
   // Restore video position when returning from Thank You (Back); clear Back flag
@@ -56,6 +57,19 @@ export default function VideoPage() {
         sessionStorage.removeItem(FROM_BACK_KEY);
       }
     } catch (_) {}
+  }, []);
+
+  // Load global video URL from backend configuration
+  useEffect(() => {
+    const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL?.replace(/\/$/, "");
+    if (!apiBase) return;
+    fetch(`${apiBase}/config/video-url`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const next = data?.video_url?.trim();
+        if (next) setVideoUrl(next);
+      })
+      .catch(() => {});
   }, []);
 
   // Listen for m (record) and u (undo)
@@ -198,7 +212,7 @@ export default function VideoPage() {
           <Box sx={{ flex: "1 1 auto", minWidth: 0 }}>
             <video
               ref={videoRef}
-              src={VIDEO_URL}
+              src={videoUrl}
               controls
               width="100%"
               style={{ borderRadius: "10px" }}

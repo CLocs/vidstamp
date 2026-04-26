@@ -16,6 +16,10 @@ from pydantic import BaseModel
 DB_PATH = os.environ.get("VIDSTAMP_DB_PATH", "vidstamp.db")
 REQUIRE_API_KEY = os.environ.get("VIDSTAMP_REQUIRE_API_KEY", "").lower() in ("1", "true", "yes")
 API_KEY = os.environ.get("VIDSTAMP_API_KEY", "")
+DEFAULT_VIDEO_URL = os.environ.get(
+    "VIDSTAMP_DEFAULT_VIDEO_URL",
+    "https://pub-05948a525013432aada6712ce583b048.r2.dev/reflect/Sample_Surgery1_cut1a.mp4",
+)
 
 
 def get_db():
@@ -34,6 +38,13 @@ def init_db():
             pgy INTEGER,
             marks TEXT NOT NULL,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS app_config (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
     """)
     conn.commit()
@@ -70,7 +81,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -80,6 +91,10 @@ class SessionPayload(BaseModel):
     role: str
     marks: list[float]
     pgy: Optional[int] = None
+
+
+class VideoUrlPayload(BaseModel):
+    video_url: str
 
 
 @app.post("/sessions")
@@ -97,6 +112,50 @@ def post_session(body: SessionPayload, _: None = Depends(_check_api_key)):
         raise HTTPException(status_code=409, detail="session_id already exists")
     finally:
         conn.close()
+
+
+@app.get("/config/video-url")
+def get_video_url():
+    """Get global video URL used by participant page."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT value FROM app_config WHERE key = ?",
+        ("video_url",),
+    ).fetchone()
+    conn.close()
+    return {"video_url": row["value"] if row else DEFAULT_VIDEO_URL}
+
+
+@app.put("/config/video-url")
+def set_video_url(body: VideoUrlPayload, _: None = Depends(_check_api_key)):
+    """Set global video URL. Requires API key when enabled."""
+    video_url = (body.video_url or "").strip()
+    if not video_url:
+        raise HTTPException(status_code=400, detail="video_url is required")
+    conn = get_db()
+    conn.execute(
+        """
+        INSERT INTO app_config (key, value, updated_at)
+        VALUES (?, ?, datetime('now'))
+        ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
+            updated_at = datetime('now')
+        """,
+        ("video_url", video_url),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "video_url": video_url}
+
+
+@app.delete("/config/video-url")
+def reset_video_url(_: None = Depends(_check_api_key)):
+    """Reset global video URL to default. Requires API key when enabled."""
+    conn = get_db()
+    conn.execute("DELETE FROM app_config WHERE key = ?", ("video_url",))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "video_url": DEFAULT_VIDEO_URL}
 
 
 @app.get("/export", response_class=PlainTextResponse)

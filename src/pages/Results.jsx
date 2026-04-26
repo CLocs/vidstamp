@@ -25,6 +25,8 @@ import { useNavigate } from "react-router-dom";
 const AUTH_KEY = "vidstamp_results_authenticated";
 const REFRESH_INTERVAL_MS = 30000; // 30 seconds
 const ADMIN_PASSWORD = "obgyn"; // same as study entry password
+const DEFAULT_VIDEO_URL =
+  "https://pub-05948a525013432aada6712ce583b048.r2.dev/reflect/Sample_Surgery1_cut1a.mp4";
 
 export default function Results() {
   const navigate = useNavigate();
@@ -36,6 +38,8 @@ export default function Results() {
   const [error, setError] = useState(null);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [videoUrlInput, setVideoUrlInput] = useState(DEFAULT_VIDEO_URL);
+  const [videoUrlMessage, setVideoUrlMessage] = useState("");
 
   const handleAdminLogin = () => {
     if (password.trim().toLowerCase() !== ADMIN_PASSWORD) {
@@ -71,9 +75,22 @@ export default function Results() {
     }
   };
 
+  const fetchVideoUrl = async () => {
+    const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL;
+    if (!apiBase) return;
+    try {
+      const res = await fetch(`${apiBase.replace(/\/$/, "")}/config/video-url`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const url = data?.video_url?.trim();
+      if (url) setVideoUrlInput(url);
+    } catch (_) {}
+  };
+
   useEffect(() => {
     if (!authenticated) return;
     fetchSessions();
+    fetchVideoUrl();
     const interval = setInterval(fetchSessions, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [authenticated]);
@@ -117,6 +134,62 @@ export default function Results() {
         URL.revokeObjectURL(a.href);
       })
       .catch(() => {});
+  };
+
+  const handleSaveVideoUrl = () => {
+    const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL;
+    const apiKey = import.meta.env.VITE_VIDSTAMP_API_KEY;
+    const next = videoUrlInput.trim();
+    if (!next) {
+      setVideoUrlMessage("Video URL cannot be empty.");
+      return;
+    }
+    if (!apiBase) {
+      setVideoUrlMessage("API URL not configured.");
+      return;
+    }
+    const headers = { "Content-Type": "application/json" };
+    if (apiKey) headers["X-API-Key"] = apiKey;
+    fetch(`${apiBase.replace(/\/$/, "")}/config/video-url`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ video_url: next }),
+    })
+      .then(async (r) => {
+        if (!r.ok) {
+          const msg = await r.text();
+          throw new Error(msg || r.statusText);
+        }
+        setVideoUrlMessage("Saved globally. New sessions will use this URL.");
+      })
+      .catch((err) => {
+        setVideoUrlMessage(`Save failed: ${err?.message || "unknown error"}`);
+      });
+  };
+
+  const handleResetVideoUrl = () => {
+    const apiBase = import.meta.env.VITE_VIDSTAMP_API_URL;
+    const apiKey = import.meta.env.VITE_VIDSTAMP_API_KEY;
+    if (!apiBase) {
+      setVideoUrlMessage("API URL not configured.");
+      return;
+    }
+    const headers = apiKey ? { "X-API-Key": apiKey } : {};
+    fetch(`${apiBase.replace(/\/$/, "")}/config/video-url`, {
+      method: "DELETE",
+      headers,
+    })
+      .then(async (r) => {
+        if (!r.ok) {
+          const msg = await r.text();
+          throw new Error(msg || r.statusText);
+        }
+        setVideoUrlInput(DEFAULT_VIDEO_URL);
+        setVideoUrlMessage("Reset globally to default URL.");
+      })
+      .catch((err) => {
+        setVideoUrlMessage(`Reset failed: ${err?.message || "unknown error"}`);
+      });
   };
 
   // Admin-only: password gate (no link from participant flow)
@@ -178,6 +251,45 @@ export default function Results() {
           Back to app
         </Button>
       </Box>
+      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+          Video source (admin)
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+          Set the global URL used by the participant video page.
+        </Typography>
+        <TextField
+          fullWidth
+          size="small"
+          label="Video URL"
+          value={videoUrlInput}
+          onChange={(e) => {
+            setVideoUrlInput(e.target.value);
+            setVideoUrlMessage("");
+          }}
+          sx={{ mb: 1.5 }}
+        />
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          <Button variant="contained" onClick={handleSaveVideoUrl}>
+            Save video URL
+          </Button>
+          <Button variant="outlined" onClick={handleResetVideoUrl}>
+            Reset to default
+          </Button>
+        </Box>
+        {videoUrlMessage && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+            {videoUrlMessage}
+          </Typography>
+        )}
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", mt: 1, fontFamily: "monospace", wordBreak: "break-all" }}
+        >
+          Current video URL: {videoUrlInput}
+        </Typography>
+      </Paper>
       <Dialog open={clearConfirmOpen} onClose={() => !clearing && setClearConfirmOpen(false)}>
         <DialogTitle>Clear all results?</DialogTitle>
         <DialogContent>
